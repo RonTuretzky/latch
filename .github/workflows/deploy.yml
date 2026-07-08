@@ -38,6 +38,8 @@ jobs:
           VITE_BASE_PATH: /latch/
           # Optional override for where the address manifest is fetched from ("off" disables it).
           VITE_ADDRESSES_URL: ${{ vars.VITE_ADDRESSES_URL }}
+          # WalletConnect projectId (public client id) for RainbowKit's WalletConnect protocol.
+          VITE_WC_PROJECT_ID: ${{ vars.VITE_WC_PROJECT_ID }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
