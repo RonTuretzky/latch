@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @import "@breadcoop/ui/theme";
 
+/* Tailwind v4 doesn't scan node_modules by default, so the kit's component utility classes
+   (bg-primary-orange, etc.) would be purged and its Buttons render unstyled. Scan its dist. */
+@source "../node_modules/@breadcoop/ui/dist";
+
 :root {
   color-scheme: light;
 }
