@@ -39,41 +39,56 @@ branch (the `Publish addresses manifest` workflow, or in the full stack the Brea
 [`etherform`](https://github.com/BreadchainCoop/etherform) contracts-deploy pipeline) and the live
 site picks up the new address on the next page load.
 
-## ⚠️ This targets a local chain by default
+## Live on Sepolia
 
-The seeded manifest points at a **local anvil** (chain `31337`) with the deterministic addresses
-`DeployVertex.s.sol` produces. So the hosted page renders and shows the whole UI, but to actually
-transact you need that local chain running:
+The manifest points at the **Sepolia** deployment (chain `11155111`), deployed with the
+[etherform](https://github.com/BreadchainCoop/etherform) `DeployVertex` script:
 
-```bash
-# in gas-killer/solidity-sdk:
-anvil
-forge script script/DeployVertex.s.sol:DeployVertex --rpc-url http://127.0.0.1:8545 --broadcast \
-  --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
-```
+| Contract | Address |
+|---|---|
+| GasKillerVertex | `0xf3A789D473dB08BdC07A03A57B1087CEc3203B26` |
+| Demo USDC | `0xd4E6B38CD3C739898c168caa143a4CaF4AA51c22` |
+| BLS checker | `0xbba6c8634764eF06bc90EA8727bbF04eEa9D4687` |
 
-To make the hosted site a fully-live public demo, deploy GasKillerVertex to a public testnet and run
-the **Publish addresses manifest** workflow with that chain id, a public RPC URL, and the deployed
-addresses — no rebuild required.
+All on-chain flows are verified end-to-end on Sepolia (`scripts/sepolia-verify.mts`, 16/16 in sync).
+Grab demo collateral by calling `mint(you, amount)` on the USDC contract, then connect a wallet and
+deposit.
+
+## The off-chain state store (operator)
+
+GasKillerVertex stores only `keccak256(state)` on-chain, so the full state must be supplied as a
+witness on every call. Something off-chain holds it. Because **every mutating call carries its
+semantic action in calldata**, the state is reconstructable by anyone from the chain — so **one
+honest operator is enough** (it can serve the truth or censor, never forge).
+
+- **`server/`** — a Node operator service that rebuilds the canonical state from calldata, self-heals
+  via an event-replay reconciler, and serves the witness (`GET /state` · `POST /apply` · `GET /health`).
+
+  ```bash
+  RPC=https://sepolia.drpc.org VERTEX=0xf3A7…3B26 CHAIN_ID=11155111 START_BLOCK=11231789 npm run server
+  ```
+
+- **`src/lib/reconstruct.ts`** — the same reconstruction, run **in the browser**, so the static site
+  is self-contained. The frontend uses the hosted service when `VITE_OPERATOR_URL` is set, otherwise
+  it reconstructs from the chain itself.
+
+## Connection model
+
+Real wallets via **RainbowKit** (WalletConnect + injected + Coinbase). Connect MetaMask/Rabby to
+Sepolia; writes go through your wallet. Set `VITE_WC_PROJECT_ID` (from
+[cloud.reown.com](https://cloud.reown.com)) to enable the WalletConnect protocol — injected wallets
+work without it.
 
 ## Run locally
 
 ```bash
 npm install
-npm run dev            # → http://localhost:5173
-
-# engine ↔ contract conformance (needs anvil + a deploy, see above)
-npx tsx scripts/verify.mts
+npm run dev            # → http://localhost:5173  (resolves Sepolia via the manifest)
+npm run server         # optional: hosted operator (set VITE_OPERATOR_URL to use it)
 ```
 
 ## Deploy
 
-Pushing to `main` runs `.github/workflows/deploy.yml` (build the static export → GitHub Pages). Pages
-must be set to **Source: GitHub Actions**.
-
-## Connection model
-
-The console sends transactions as one of the default anvil accounts (Deployer / Alice / Bob / Carol /
-Liquidator), selectable in the header — no wallet extension needed, so the whole flow is one click.
-**Those are the universally-known anvil test keys; they hold no real funds and are only meaningful on
-chain 31337.** For a real chain you'd wire a wallet connector instead.
+Pushing to `main` runs `.github/workflows/deploy.yml` (static export → GitHub Pages, source =
+GitHub Actions). Contract redeploys need no frontend rebuild — publish a new `addresses.json` to the
+`addresses` branch and the live site picks it up.
