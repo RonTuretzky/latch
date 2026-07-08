@@ -41,7 +41,7 @@ export const CONFIG: AppConfig = {
 
 // CORS-fetchable manifest mirror on the `addresses` branch. Override with
 // VITE_ADDRESSES_URL, or set it to "off" to disable runtime hydration.
-const MANIFEST_URL = env.VITE_ADDRESSES_URL || "https://raw.githubusercontent.com/RonTuretzky/gaskiller-vertex-ui/addresses/addresses.json";
+const MANIFEST_URL = env.VITE_ADDRESSES_URL || "https://raw.githubusercontent.com/RonTuretzky/latch/addresses/addresses.json";
 
 const FETCH_TIMEOUT_MS = 5000;
 

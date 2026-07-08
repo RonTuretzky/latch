@@ -1,15 +1,19 @@
-# GasKillerVertex — operator console
+# Latch — a single-slot perpetuals exchange
 
-A static React dApp for **GasKillerVertex**, a single-slot cross-margin perpetual-futures DEX
-(off-chain matching, whole exchange committed to one storage slot, applied on-chain via a
-BLS-attested `verifyAndUpdate`). The contract lives in
+**Latch** is a cross-margin perpetual-futures DEX whose entire state — every balance, position,
+order and funding index — is committed to **one 32-byte storage slot**. Matching runs off-chain with
+no gas ceiling; the chain only ever verifies a hash and applies a single write. It's a proof-of-concept
+built on the **Gas Killer** SDK; the reference contract is `GasKillerVertex` in
 [`gas-killer/solidity-sdk`](https://github.com/gas-killer/solidity-sdk).
 
 Built with [`@breadcoop/ui`](https://github.com/BreadchainCoop/bread-ui-kit) (React + Tailwind v4 +
-wagmi/viem), and it follows the [crowdstake.fun](https://github.com/BreadchainCoop/crowdstake.fun)
-conventions for GitHub Pages hosting and runtime address resolution.
+wagmi/viem), following the [crowdstake.fun](https://github.com/BreadchainCoop/crowdstake.fun)
+conventions for GitHub Pages hosting and runtime address resolution, and the
+[etherform](https://github.com/BreadchainCoop/etherform) convention for deployments.
 
-**Live site:** https://ronturetzky.github.io/gaskiller-vertex-ui/
+**Live site:** https://ronturetzky.github.io/latch/ · **Product** `/` · **App** `/#/app` · **Docs** `/#/docs`
+
+![Latch demo](public/media/trade-settle.gif)
 
 ## Why this frontend is unusual
 

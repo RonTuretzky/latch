@@ -35,7 +35,7 @@ jobs:
         run: npm run build
         env:
           # Project Pages serves under /<repo>/ — drop this for a root custom domain.
-          VITE_BASE_PATH: /gaskiller-vertex-ui/
+          VITE_BASE_PATH: /latch/
           # Optional override for where the address manifest is fetched from ("off" disables it).
           VITE_ADDRESSES_URL: ${{ vars.VITE_ADDRESSES_URL }}
       - uses: actions/upload-pages-artifact@v3
