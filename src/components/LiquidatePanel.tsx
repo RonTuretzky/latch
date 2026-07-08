@@ -9,7 +9,7 @@ export function LiquidatePanel() {
   const targets = liquidatable(state);
 
   return (
-    <Card title="Liquidations" subtitle={`accounts below maintenance margin — ${acting.label} would be the liquidator`}>
+    <Card title="Liquidations" subtitle={`accounts below maintenance margin — ${acting?.label ?? "you"} would be the liquidator`}>
       {targets.length === 0 ? (
         <div className="rounded-lg bg-neutral-50 px-3 py-4 text-center text-sm text-neutral-400">No liquidatable accounts</div>
       ) : (
@@ -35,7 +35,7 @@ export function LiquidatePanel() {
                   <Pill tone="neg">underwater</Pill>
                 </Td>
                 <Td className="text-right">
-                  <Button size="sm" variant="destructive" onClick={() => liquidate(t.owner as Address, t.marketId)} isLoading={busy} disabled={t.owner.toLowerCase() === acting.address.toLowerCase()}>
+                  <Button size="sm" variant="destructive" onClick={() => liquidate(t.owner as Address, t.marketId)} isLoading={busy} disabled={t.owner.toLowerCase() === (acting?.address?.toLowerCase() ?? "")}>
                     Liquidate
                   </Button>
                 </Td>

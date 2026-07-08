@@ -59,8 +59,8 @@ export function TradePanel() {
           </div>
 
           <div className="mt-4 grid grid-cols-2 gap-4">
-            <OrderColumn title="Bids" tone="pos" rows={bids} acting={acting.address} onCancel={cancelOrder} busy={busy} />
-            <OrderColumn title="Asks" tone="neg" rows={asks} acting={acting.address} onCancel={cancelOrder} busy={busy} />
+            <OrderColumn title="Bids" tone="pos" rows={bids} acting={acting?.address ?? ""} onCancel={cancelOrder} busy={busy} />
+            <OrderColumn title="Asks" tone="neg" rows={asks} acting={acting?.address ?? ""} onCancel={cancelOrder} busy={busy} />
           </div>
         </>
       )}

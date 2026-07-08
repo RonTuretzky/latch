@@ -26,9 +26,11 @@ export type AppConfig = {
   vertex: Address;
   usdc: Address;
   bls: Address;
+  deployBlock: bigint; // where to start on-chain state reconstruction
 };
 
 const env = (import.meta.env ?? {}) as unknown as Record<string, string | undefined>;
+const bakedAny = baked as Record<string, unknown>;
 
 // (1) env pins > (3) baked fallback. (2) manifest is merged in at runtime below.
 export const CONFIG: AppConfig = {
@@ -37,6 +39,7 @@ export const CONFIG: AppConfig = {
   vertex: (env.VITE_VERTEX || baked.vertex) as Address,
   usdc: (env.VITE_USDC || baked.usdc) as Address,
   bls: (env.VITE_BLS || baked.bls) as Address,
+  deployBlock: BigInt(env.VITE_DEPLOY_BLOCK || (bakedAny.deployBlock as number | undefined) || 0),
 };
 
 // CORS-fetchable manifest mirror on the `addresses` branch. Override with
@@ -45,7 +48,7 @@ const MANIFEST_URL = env.VITE_ADDRESSES_URL || "https://raw.githubusercontent.co
 
 const FETCH_TIMEOUT_MS = 5000;
 
-type ManifestChain = Partial<Pick<AppConfig, "rpcUrl" | "vertex" | "usdc" | "bls">>;
+type ManifestChain = Partial<Pick<AppConfig, "rpcUrl" | "vertex" | "usdc" | "bls">> & { deployBlock?: number };
 type Manifest = { version: number; chains: Record<string, ManifestChain> };
 
 /**
@@ -79,6 +82,10 @@ export async function hydrateRemoteAddresses(): Promise<boolean> {
       (CONFIG as Record<string, unknown>)[k] = v;
       updated = true;
     }
+  }
+  if (entry.deployBlock !== undefined && CONFIG.deployBlock !== BigInt(entry.deployBlock)) {
+    CONFIG.deployBlock = BigInt(entry.deployBlock);
+    updated = true;
   }
   return updated;
 }

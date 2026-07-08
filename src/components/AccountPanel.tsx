@@ -5,6 +5,13 @@ import { accountOf, marginFor, positionViews } from "../selectors";
 
 export function AccountPanel() {
   const { state, acting, usdcAllowance, approve, busy } = useStore();
+  if (!acting) {
+    return (
+      <Card title="Your account" subtitle="connect a wallet">
+        <div className="rounded-lg bg-neutral-50 px-3 py-6 text-center text-sm text-neutral-400">Connect a wallet to see your collateral, health, and positions.</div>
+      </Card>
+    );
+  }
   const acc = accountOf(state, acting.address);
   const m = marginFor(state, acting.address);
   const positions = positionViews(state, acting.address);

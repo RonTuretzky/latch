@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
-import { Button, Body, cn } from "@breadcoop/ui";
+import { useAccount } from "wagmi";
+import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { Body, cn } from "@breadcoop/ui";
 import { useStore } from "../store";
+import { useWalletBridge } from "../hooks/useWalletBridge";
 import { Header } from "../components/Header";
 import { StateInspector } from "../components/StateInspector";
 import { AccountPanel } from "../components/AccountPanel";
@@ -21,12 +24,14 @@ const TABS: { id: Tab; label: string }[] = [
 ];
 
 export function Console() {
-  const { refresh, error, seedDemo, busy, transitionCount } = useStore();
+  useWalletBridge();
+  const { isConnected } = useAccount();
+  const { refresh, error } = useStore();
   const [tab, setTab] = useState<Tab>("trade");
 
   useEffect(() => {
     void refresh();
-    const t = setInterval(() => void refresh(), 5000);
+    const t = setInterval(() => void refresh(), 8000);
     return () => clearInterval(t);
   }, [refresh]);
 
@@ -41,17 +46,15 @@ export function Console() {
       )}
 
       <main className="mx-auto max-w-[1400px] px-6 py-5">
-        {transitionCount === 0n && (
-          <div className="mb-5 flex items-center justify-between gap-4 rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4">
+        {!isConnected && (
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-orange-200 bg-orange-50 px-5 py-4">
             <div>
-              <Body bold>Fresh exchange.</Body>
+              <Body bold>Connect a wallet to trade on Sepolia.</Body>
               <Body className="!text-sm text-neutral-600">
-                This console is the off-chain operator: it holds the full exchange state and commits a single 32-byte hash on-chain. Seed a scenario, or drive everything by hand.
+                The exchange state below is reconstructed live from the chain — it's public and needs no wallet. Connect to deposit, place orders, settle, or liquidate. Get demo USDC by calling <code>mint</code> on the USDC contract.
               </Body>
             </div>
-            <Button onClick={seedDemo} isLoading={busy}>
-              Seed demo scenario
-            </Button>
+            <ConnectButton />
           </div>
         )}
 
@@ -85,7 +88,6 @@ export function Console() {
             )}
           </div>
 
-          {/* persistent operator status rail */}
           <div className="space-y-5">
             <AccountPanel />
             <StateInspector />
@@ -94,7 +96,7 @@ export function Console() {
         </div>
 
         <footer className="mt-8 pb-8 text-center text-xs text-neutral-400">
-          Latch · off-chain matching + single-slot commitment · local anvil · UI by <span className="font-medium">@breadcoop/ui</span>
+          Latch · off-chain state (operator service / chain reconstruction) · single-slot commitment · Sepolia · UI by <span className="font-medium">@breadcoop/ui</span>
         </footer>
       </main>
     </>
