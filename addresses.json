@@ -2,7 +2,7 @@
   "version": 1,
   "chains": {
     "11155111": {
-      "rpcUrl": "https://ethereum-sepolia-rpc.publicnode.com",
+      "rpcUrl": "https://sepolia.drpc.org",
       "vertex": "0xf3A789D473dB08BdC07A03A57B1087CEc3203B26",
       "usdc": "0xd4E6B38CD3C739898c168caa143a4CaF4AA51c22",
       "bls": "0xbba6c8634764eF06bc90EA8727bbF04eEa9D4687",
