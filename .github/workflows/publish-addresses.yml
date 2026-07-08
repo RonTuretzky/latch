@@ -1,0 +1,78 @@
+name: Publish addresses manifest
+
+# The "etherform → latest addy" integration point, in miniature.
+#
+# In the full BreadchainCoop setup, a contracts-deploy workflow (using the
+# BreadchainCoop/etherform deploy scripts) deploys the contracts and, as its last step, mirrors an
+# addresses.json manifest to the `addresses` branch — which the static frontend fetches at runtime
+# (src/lib/addresses.ts) with CORS via raw.githubusercontent.com. That decouples a contract redeploy
+# from a frontend rebuild.
+#
+# This repo has no on-chain deploy of its own (GasKillerVertex lives in gas-killer/solidity-sdk and
+# is deployed to a local anvil by script/DeployVertex.s.sol), so this workflow is the manual
+# equivalent: dispatch it with the freshly-deployed addresses and it updates the manifest in place.
+
+on:
+  workflow_dispatch:
+    inputs:
+      chainId:
+        description: "Chain id (e.g. 31337 for anvil)"
+        required: true
+        default: "31337"
+      rpcUrl:
+        description: "RPC URL the frontend should use for this chain"
+        required: true
+        default: "http://127.0.0.1:8545"
+      vertex:
+        description: "GasKillerVertex address"
+        required: true
+      usdc:
+        description: "Quote (USDC) address"
+        required: true
+      bls:
+        description: "BLS signature checker address"
+        required: false
+        default: "0x0000000000000000000000000000000000000000"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Merge inputs into addresses.json on the `addresses` branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CHAIN_ID: ${{ inputs.chainId }}
+          RPC_URL: ${{ inputs.rpcUrl }}
+          VERTEX: ${{ inputs.vertex }}
+          USDC: ${{ inputs.usdc }}
+          BLS: ${{ inputs.bls }}
+        run: |
+          set -euo pipefail
+          # Start from the existing manifest (if any), else an empty v1 manifest.
+          gh api "repos/$GITHUB_REPOSITORY/contents/addresses.json?ref=addresses" --jq .content 2>/dev/null \
+            | base64 -d > prev.json || echo '{"version":1,"chains":{}}' > prev.json
+          python3 - <<'PY'
+          import json, os
+          m = json.load(open("prev.json"))
+          if m.get("version") != 1 or not isinstance(m.get("chains"), dict):
+              m = {"version": 1, "chains": {}}
+          m["chains"][os.environ["CHAIN_ID"]] = {
+              "rpcUrl": os.environ["RPC_URL"],
+              "vertex": os.environ["VERTEX"],
+              "usdc": os.environ["USDC"],
+              "bls": os.environ["BLS"],
+          }
+          json.dump(m, open("addresses.json", "w"), indent=2)
+          PY
+          python3 -m json.tool addresses.json >/dev/null
+          content_b64=$(base64 -w0 addresses.json)
+          sha=$(gh api "repos/$GITHUB_REPOSITORY/contents/addresses.json?ref=addresses" --jq .sha 2>/dev/null || true)
+          gh api -X PUT "repos/$GITHUB_REPOSITORY/contents/addresses.json" \
+            -f message="chore(addresses): publish manifest for chain ${CHAIN_ID}" \
+            -f content="$content_b64" \
+            -f branch=addresses \
+            ${sha:+-f sha="$sha"}
+          echo "Published addresses.json to the \`addresses\` branch — the live site picks it up on next load."
