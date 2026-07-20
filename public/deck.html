@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Latch — a single-slot perp DEX, powered by Gas Killer</title>
+<style>
+  :root {
+    --bg: #100f0d;
+    --bg2: #1a1815;
+    --ink: #f4f1ea;
+    --muted: #a29c92;
+    --accent: #ff6a1a;
+    --green: #35d39a;
+    --border: rgba(255, 255, 255, 0.10);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg); color: var(--ink); font-family: var(--sans);
+    overflow: hidden; -webkit-font-smoothing: antialiased;
+  }
+  #stage { position: fixed; inset: 0; }
+  .slide {
+    position: absolute; inset: 0; display: none;
+    padding: min(9vh, 90px) min(10vw, 130px);
+    flex-direction: column; justify-content: center;
+    opacity: 0; transition: opacity .45s ease;
+  }
+  .slide.on { display: flex; opacity: 1; }
+  .kicker {
+    font-family: var(--mono); font-size: 13px; letter-spacing: .18em;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 22px;
+  }
+  h1 { font-size: clamp(38px, 6vw, 88px); line-height: 1.02; font-weight: 800; letter-spacing: -.02em; }
+  h2 { font-size: clamp(30px, 4.4vw, 60px); line-height: 1.05; font-weight: 800; letter-spacing: -.02em; }
+  .lead { font-size: clamp(18px, 2.1vw, 27px); color: var(--muted); max-width: 60ch; margin-top: 22px; line-height: 1.45; }
+  .lead b, .lead strong { color: var(--ink); font-weight: 650; }
+  .accent { color: var(--accent); }
+  .green { color: var(--green); }
+  ul.big { margin-top: 30px; list-style: none; display: grid; gap: 16px; max-width: 68ch; }
+  ul.big li { font-size: clamp(17px, 1.9vw, 24px); line-height: 1.4; padding-left: 30px; position: relative; color: var(--ink); }
+  ul.big li::before { content: "→"; position: absolute; left: 0; color: var(--accent); }
+  ul.big li span { color: var(--muted); }
+  .mono {
+    font-family: var(--mono); background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 14px; padding: 22px 26px; margin-top: 30px; font-size: clamp(13px, 1.35vw, 17px);
+    line-height: 1.7; color: #e8e3d8; white-space: pre; overflow-x: auto; max-width: 92ch;
+  }
+  .mono .c { color: var(--muted); }
+  .mono .k { color: var(--accent); }
+  .mono .g { color: var(--green); }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 34px; max-width: 1000px; }
+  .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 16px; padding: 22px 24px; }
+  .card .n { font-size: clamp(26px, 3vw, 40px); font-weight: 800; letter-spacing: -.02em; }
+  .card .n.sm { font-size: clamp(18px, 2vw, 26px); }
+  .card .l { color: var(--muted); font-size: 14px; margin-top: 8px; line-height: 1.4; }
+  .steps { margin-top: 30px; display: grid; gap: 14px; max-width: 76ch; }
+  .step { display: grid; grid-template-columns: 40px 1fr; gap: 18px; align-items: start; }
+  .step .num { width: 34px; height: 34px; border-radius: 50%; background: var(--accent); color: #1a1005;
+    font-weight: 800; display: grid; place-items: center; font-size: 16px; }
+  .step .t { font-size: clamp(15px, 1.6vw, 20px); line-height: 1.4; }
+  .step .t b { color: var(--ink); } .step .t { color: var(--muted); }
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center; }
+  .figure { border: 1px solid var(--border); border-radius: 16px; overflow: hidden; background: var(--bg2); }
+  .figure img { display: block; width: 100%; }
+  .figure .cap { padding: 12px 16px; font-size: 13px; color: var(--muted); border-top: 1px solid var(--border); }
+  .rows { margin-top: 26px; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; max-width: 900px; }
+  .row { display: grid; grid-template-columns: 220px 1fr; padding: 13px 22px; border-top: 1px solid var(--border); font-size: clamp(13px, 1.4vw, 17px); }
+  .row:first-child { border-top: none; }
+  .row .kk { color: var(--muted); } .row .vv { font-family: var(--mono); color: var(--ink); }
+  .pill { display: inline-block; font-family: var(--mono); font-size: 12px; letter-spacing: .04em; padding: 4px 11px; border-radius: 999px; background: rgba(53,211,154,.13); color: var(--green); border: 1px solid rgba(53,211,154,.3); }
+  .links { margin-top: 34px; display: grid; gap: 14px; }
+  .links a { color: var(--ink); text-decoration: none; font-size: clamp(16px, 1.8vw, 22px); border-bottom: 1px solid var(--border); padding-bottom: 12px; display: flex; justify-content: space-between; max-width: 760px; }
+  .links a span { color: var(--muted); font-family: var(--mono); font-size: 14px; }
+  .links a:hover { color: var(--accent); }
+  .logo { display: flex; align-items: center; gap: 14px; margin-bottom: 30px; }
+  .logo .dot { width: 34px; height: 34px; border-radius: 50%; background:
+      radial-gradient(circle at 50% 50%, var(--accent) 0 32%, transparent 34%),
+      conic-gradient(from 0deg, var(--accent), #ffb066, var(--accent)); }
+  .logo .nm { font-weight: 800; letter-spacing: .02em; }
+  .logo .nm small { display: block; font-family: var(--mono); font-size: 10px; letter-spacing: .2em; color: var(--muted); text-transform: uppercase; }
+  /* chrome */
+  #bar { position: fixed; left: 0; bottom: 0; height: 3px; background: var(--accent); width: 0; transition: width .35s ease; z-index: 5; }
+  #count { position: fixed; right: 26px; bottom: 20px; font-family: var(--mono); font-size: 13px; color: var(--muted); z-index: 5; }
+  #hint { position: fixed; left: 26px; bottom: 18px; font-family: var(--mono); font-size: 12px; color: var(--muted); z-index: 5; opacity: .8; }
+  .foot { position: absolute; left: min(10vw,130px); bottom: min(6vh,54px); font-family: var(--mono); font-size: 12px; letter-spacing: .12em; color: var(--muted); text-transform: uppercase; }
+  @media (max-width: 820px) {
+    .grid { grid-template-columns: 1fr; } .split { grid-template-columns: 1fr; } .row { grid-template-columns: 130px 1fr; }
+    .slide { padding: 60px 28px; }
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+
+  <!-- 1 -->
+  <section class="slide">
+    <div class="logo"><div class="dot"></div><div class="nm">Latch<small>powered by gas killer</small></div></div>
+    <h1>A perpetuals exchange<br>in a <span class="accent">single storage slot</span>.</h1>
+    <p class="lead">A cross-margin perp DEX whose entire state — every balance, position, order and funding index — is committed to one 32-byte on-chain hash. Matching runs off-chain with no gas ceiling; the chain only ever verifies.</p>
+    <div class="foot">↓ press → to advance</div>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide">
+    <div class="kicker">The problem</div>
+    <h2>On-chain order books are gas-bound.</h2>
+    <p class="lead">A conventional on-chain CLOB runs matching, mark-to-market, funding and liquidations <b>inside a transaction</b> — so throughput is capped by the block gas limit. That's why every serious order-book perp lives off-chain:</p>
+    <ul class="big">
+      <li>dYdX → a Cosmos app-chain <span>(off-chain matching)</span></li>
+      <li>Lighter → a ZK-rollup <span>(validity proofs)</span></li>
+      <li>Vertex → an off-chain sequencer <span>(on-chain re-check)</span></li>
+    </ul>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide">
+    <div class="kicker">The idea</div>
+    <h2>Store a <span class="accent">commitment</span>, not the exchange.</h2>
+    <p class="lead">Gas Killer inverts a normal contract. Instead of one storage slot per order and per position, it stores <b>only</b> <code>keccak256(state)</code>. The expanded state is handed to the contract as a <b>witness</b> on every call and verified by re-hashing.</p>
+    <p class="lead">The book isn't on-chain, so reads and writes of it cost nothing on-chain — the exchange's size is <b>unbounded</b> while its on-chain footprint is fixed at one slot.</p>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide">
+    <div class="kicker">The commitment</div>
+    <h2>The whole exchange, one 32-byte word.</h2>
+    <div class="mono"><span class="c"># one storage slot commits everything</span>
+STATE_SLOT = {
+  <span class="k">bits[255:64]</span> = uint192( keccak256(canonical_state) ),
+  <span class="k">bits[63:0]</span>   = uint64( lastTransitionAt )
+}
+
+<span class="c"># every mutator verifies the witness, then re-commits</span>
+require( keccak256(witness) == committed_hash )   <span class="c">// StateWitnessMismatch</span></div>
+    <p class="lead" style="margin-top:26px">Accounts, cross-margin positions, resting orders, oracle prices, funding indices, the insurance fund — all of it hashes into that one slot.</p>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide">
+    <div class="kicker">How Gas Killer enables it</div>
+    <h2>Compute off-chain. Commit one write.</h2>
+    <div class="steps">
+      <div class="step"><div class="num">1</div><div class="t"><b>State is a commitment, not a layout.</b> The book's size is unbounded; the on-chain footprint is one slot.</div></div>
+      <div class="step"><div class="num">2</div><div class="t"><b>Unbounded off-chain execution.</b> Operators run <code>settleEpoch</code> under <code>SimProfile::UnboundedV1</code> (2⁴⁰ gas) — a 1,200-order match costs ~527M gas, ~17× a block.</div></div>
+      <div class="step"><div class="num">3</div><div class="t"><b>The result is a bounded diff.</b> However much it computes, the on-chain effect is a single <code>STORE(STATE_SLOT, newCommitment)</code>.</div></div>
+      <div class="step"><div class="num">4</div><div class="t"><b>Restaked operators attest.</b> A ≥66% EigenLayer BLS quorum applies the STORE via <code>verifyAndUpdate</code>. Economic trust — not a validity proof — and honestly labelled so.</div></div>
+      <div class="step"><div class="num">5</div><div class="t"><b>A liveness backstop.</b> A 7-day inactivity gate lets any user exit even if operators go dark.</div></div>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide">
+    <div class="kicker">The honest architecture</div>
+    <h2>Solidity is the <span class="accent">vault + verifier</span> — not the exchange.</h2>
+    <p class="lead">"Everything in Solidity" would be the gas-bound thing we're escaping. The real deal is a hybrid, and it's the deal that buys unbounded compute:</p>
+    <div class="grid">
+      <div class="card"><div class="n sm">On-chain</div><div class="l">Custody of collateral · the 32-byte commitment · witness &amp; quorum verification · replay guard · the emergency exit.</div></div>
+      <div class="card"><div class="n sm">Off-chain</div><div class="l">The full state · matching · funding · liquidation math · the operator that holds it all and serves the witness.</div></div>
+      <div class="card"><div class="n sm">The trade</div><div class="l">Move state &amp; compute off-chain → get unbounded throughput and O(1) on-chain state. You can't have that and "all on-chain."</div></div>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide">
+    <div class="kicker">The off-chain state store</div>
+    <h2>One honest operator is enough.</h2>
+    <p class="lead">Every mutating call carries its semantic action in <b>calldata</b> — which is on-chain data. So the canonical state is <b>reconstructable by anyone</b> from the chain. The operator can serve the truth or censor, but it <b>can never forge</b> (the contract rejects a wrong witness).</p>
+    <ul class="big">
+      <li><b>server/</b> — a Node operator: rebuilds state from calldata, self-heals via event replay, serves the witness <span>(GET /state · POST /apply · GET /health)</span></li>
+      <li><b>reconstruct.ts</b> — the same logic <b>in the browser</b>, so the static site is self-contained: the browser is its own read-only operator</li>
+    </ul>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide">
+    <div class="kicker">What we built</div>
+    <h2>Contract → service → app → deploy.</h2>
+    <div class="grid">
+      <div class="card"><div class="n">GasKillerVertex</div><div class="l">Cross-margin perp DEX in the single-slot pattern. Funding, health-based liquidation, insurance fund. 23 tests, adversarially reviewed.</div></div>
+      <div class="card"><div class="n">Operator</div><div class="l">Reconstructs state from calldata + serves the witness. Proven: rebuilt the live Sepolia state, in sync, zero trusted input.</div></div>
+      <div class="card"><div class="n">Latch app</div><div class="l">React + @breadcoop/ui. Real wallets (WalletConnect), live order book, single-slot commitment inspector.</div></div>
+      <div class="card"><div class="n">etherform</div><div class="l">BreadchainCoop's reusable Foundry deploy workflow — deploys the stack to a testnet.</div></div>
+      <div class="card"><div class="n">crowdstake</div><div class="l">Addresses resolved at runtime from an <code>addresses.json</code> manifest — redeploys need no frontend rebuild.</div></div>
+      <div class="card"><div class="n">Conformance</div><div class="l">A TS engine mirrors the contract; every transition asserts <code>computeStateHash == stateHash</code>.</div></div>
+    </div>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide">
+    <div class="kicker">Verified on Sepolia</div>
+    <h2>All on-chain flows, end to end. <span class="pill">16 / 16 in sync</span></h2>
+    <div class="rows">
+      <div class="row"><div class="kk">GasKillerVertex</div><div class="vv">0xf3A789D473dB08BdC07A03A57B1087CEc3203B26</div></div>
+      <div class="row"><div class="kk">Demo USDC</div><div class="vv">0xd4E6B38CD3C739898c168caa143a4CaF4AA51c22</div></div>
+      <div class="row"><div class="kk">BLS checker</div><div class="vv">0xbba6c8634764eF06bc90EA8727bbF04eEa9D4687</div></div>
+    </div>
+    <p class="lead" style="margin-top:24px">deposit · withdraw · listMarket · syncMarket · placeOrder · cancelOrder · settleEpoch · liquidate · verifyAndUpdate <span class="green">(BLS quorum → 1 STORE)</span> · emergency gate — each verified against a live testnet with the operator mirror matching at every step.</p>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide">
+    <div class="kicker">Demo · trade &amp; settle</div>
+    <div class="split">
+      <div>
+        <h2>Orders match into perp positions.</h2>
+        <p class="lead">Seed a scenario, cross a bid and an ask, settle — and the single-slot commitment tracks every step. The whole console is the off-chain operator.</p>
+      </div>
+      <div class="figure">
+        <img src="https://ronturetzky.github.io/latch/media/trade-settle.gif" alt="trade and settle demo" loading="eager" />
+        <div class="cap">seed → orders → settle → tour the console</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 11 -->
+  <section class="slide">
+    <div class="kicker">Demo · the commitment</div>
+    <div class="split">
+      <div>
+        <h2>Off-chain state, on-chain hash — <span class="green">in&nbsp;sync</span>.</h2>
+        <p class="lead">Each action changes the off-chain state; the operator recomputes the 192-bit hash and it matches the on-chain slot exactly. The chain never stored the book — only the commitment.</p>
+      </div>
+      <div class="figure">
+        <img src="https://ronturetzky.github.io/latch/media/commitment.gif" alt="single-slot commitment staying in sync" loading="eager" />
+        <div class="cap">operator-computed hash == on-chain state hash</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 12 -->
+  <section class="slide">
+    <div class="kicker">Close</div>
+    <h2>Live, on-chain, honest about the split.</h2>
+    <div class="links">
+      <a href="https://ronturetzky.github.io/latch/" target="_blank">Live app<span>ronturetzky.github.io/latch</span></a>
+      <a href="https://github.com/RonTuretzky/latch" target="_blank">Frontend + operator service<span>github.com/RonTuretzky/latch</span></a>
+      <a href="https://github.com/gas-killer/solidity-sdk" target="_blank">GasKillerVertex contract<span>gas-killer/solidity-sdk</span></a>
+      <a href="https://github.com/BreadchainCoop/bread-ui-kit" target="_blank">UI kit<span>BreadchainCoop/bread-ui-kit</span></a>
+    </div>
+    <div class="foot">Latch · a Gas Killer example · Sepolia</div>
+  </section>
+
+</div>
+
+<div id="bar"></div>
+<div id="count"></div>
+<div id="hint">← → · space · click</div>
+
+<script>
+  const slides = [...document.querySelectorAll('.slide')];
+  let i = 0;
+  function show(n) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach((s, k) => s.classList.toggle('on', k === i));
+    document.getElementById('bar').style.width = ((i) / (slides.length - 1) * 100) + '%';
+    document.getElementById('count').textContent = (i + 1) + ' / ' + slides.length;
+    location.hash = i + 1;
+  }
+  function next() { show(i + 1); }
+  function prev() { show(i - 1); }
+  addEventListener('keydown', e => {
+    if (['ArrowRight', ' ', 'PageDown', 'ArrowDown'].includes(e.key)) { e.preventDefault(); next(); }
+    else if (['ArrowLeft', 'PageUp', 'ArrowUp'].includes(e.key)) { e.preventDefault(); prev(); }
+    else if (e.key === 'Home') show(0);
+    else if (e.key === 'End') show(slides.length - 1);
+  });
+  addEventListener('click', e => { if (e.target.closest('a')) return; (e.clientX < innerWidth * 0.28 ? prev : next)(); });
+  const start = parseInt(location.hash.slice(1)) - 1;
+  show(Number.isFinite(start) && start >= 0 ? start : 0);
+</script>
+</body>
+</html>
